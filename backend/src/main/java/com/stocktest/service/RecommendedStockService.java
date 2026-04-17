@@ -8,6 +8,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -31,18 +32,19 @@ public class RecommendedStockService {
 
     /** 거래량 상위 */
     @SuppressWarnings("unchecked")
-    public List<RecommendedStock> getTopVolume(String market) {
-        String url = baseUrl + "/uapi/domestic-stock/v1/ranking/trading-volume"
+    public List<RecommendedStock> getTopVolume(String market, long minPrice, long maxPrice, long minVolume) {
+        String url = baseUrl + "/uapi/domestic-stock/v1/quotations/volume-rank"
                 + "?FID_COND_MRKT_DIV_CODE=" + market
                 + "&FID_COND_SCR_DIV_CODE=20171"
                 + "&FID_INPUT_ISCD=0000"
                 + "&FID_DIV_CLS_CODE=0"
                 + "&FID_BLNG_CLS_CODE=0"
                 + "&FID_TRGT_CLS_CODE=111111111"
-                + "&FID_TRGT_EXLS_CLS_CODE=0000000000"
+                + "&FID_TRGT_EXLS_CLS_CODE=000000000"
                 + "&FID_INPUT_PRICE_1=0"
                 + "&FID_INPUT_PRICE_2=0"
                 + "&FID_VOL_CNT=0"
+                + "&FID_INPUT_CNT_1=0"
                 + "&FID_INPUT_DATE_1=";
 
         HttpEntity<Void> req = new HttpEntity<>(createHeaders("FHPST01710000"));
@@ -76,23 +78,33 @@ public class RecommendedStockService {
                     s.setUp("1".equals(sign) || "2".equals(sign));
                     return s;
                 })
+                .filter(s -> (minPrice <= 0 || s.getCurrentPrice() >= minPrice)
+                          && (maxPrice <= 0 || s.getCurrentPrice() <= maxPrice)
+                          && (minVolume <= 0 || s.getVolume() >= minVolume))
                 .limit(30)
                 .collect(Collectors.toList());
     }
 
     /** 등락률 순위 (divCode: "0"=상승, "1"=하락) */
     @SuppressWarnings("unchecked")
-    public List<RecommendedStock> getFluctuation(String market, String divCode) {
+    public List<RecommendedStock> getFluctuation(String market, String divCode, long minPrice, long maxPrice, long minVolume) {
         String url = baseUrl + "/uapi/domestic-stock/v1/ranking/fluctuation"
                 + "?FID_COND_MRKT_DIV_CODE=" + market
                 + "&FID_COND_SCR_DIV_CODE=20170"
                 + "&FID_INPUT_ISCD=0000"
-                + "&FID_DIV_CLS_CODE=" + divCode
+                + "&FID_RANK_SORT_CLS_CODE=" + divCode
+                + "&FID_INPUT_CNT_1=0"
+                + "&FID_PRC_CLS_CODE=0"
+                + "&FID_DIV_CLS_CODE=0"
                 + "&FID_BLNG_CLS_CODE=0"
                 + "&FID_TRGT_CLS_CODE=111111111"
                 + "&FID_TRGT_EXLS_CLS_CODE=0000000000"
                 + "&FID_INPUT_PRICE_1=0"
                 + "&FID_INPUT_PRICE_2=0"
+                + "&FID_RST_DSPL_STND=0"
+                + "&FID_MXPR_OVER_DSPL_YN=0"
+                + "&FID_RSFL_RATE1=0"
+                + "&FID_RSFL_RATE2=0"
                 + "&FID_VOL_CNT=0"
                 + "&FID_INPUT_DATE_1=";
 
@@ -108,6 +120,7 @@ public class RecommendedStockService {
         List<Map<String, Object>> output = (List<Map<String, Object>>) body.get("output");
         if (output == null) return List.of();
 
+        boolean gainers = "0".equals(divCode);
         return output.stream()
                 .filter(item -> item.get("hts_kor_isnm") != null
                         && !((String) item.get("hts_kor_isnm")).isBlank())
@@ -126,6 +139,13 @@ public class RecommendedStockService {
                     s.setUp("1".equals(sign) || "2".equals(sign));
                     return s;
                 })
+                .filter(s -> gainers ? s.getChangeRate() > 0 : s.getChangeRate() < 0)
+                .filter(s -> (minPrice <= 0 || s.getCurrentPrice() >= minPrice)
+                          && (maxPrice <= 0 || s.getCurrentPrice() <= maxPrice)
+                          && (minVolume <= 0 || s.getVolume() >= minVolume))
+                .sorted(gainers
+                        ? Comparator.comparingDouble(RecommendedStock::getChangeRate).reversed()
+                        : Comparator.comparingDouble(RecommendedStock::getChangeRate))
                 .limit(30)
                 .collect(Collectors.toList());
     }

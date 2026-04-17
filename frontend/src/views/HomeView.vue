@@ -13,9 +13,6 @@
           <router-link to="/portfolio" class="btn btn-sm btn-outline-light">
             <i class="bi bi-briefcase me-1"></i>포트폴리오
           </router-link>
-          <router-link to="/recommend" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-star me-1"></i>추천 종목
-          </router-link>
           <span class="text-white small border-start border-light ps-3">
             <i class="bi bi-wallet2 me-1"></i>
             {{ account ? account.balance.toLocaleString() + '원' : '...' }}
@@ -177,10 +174,11 @@
         </div>
       </div>
 
-      <!-- 차트 영역 -->
-      <div v-if="selectedStock" class="row">
-        <div class="col-12">
-          <div class="card border-0 shadow-sm">
+      <!-- 차트 + 추천 종목 사이드바 -->
+      <div class="row g-3">
+        <!-- 차트 -->
+        <div class="col-lg-8">
+          <div v-if="selectedStock" class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 px-3">
               <span class="fw-semibold text-secondary small">
                 <i class="bi bi-bar-chart-fill me-1"></i>캔들 차트
@@ -202,6 +200,97 @@
                 <div class="text-muted small">차트 데이터 로딩 중...</div>
               </div>
               <div v-show="!chartLoading" ref="chartContainer" style="width: 100%; height: 460px;"></div>
+            </div>
+          </div>
+          <div v-else class="text-center py-5 text-muted">
+            <i class="bi bi-bar-chart-line display-1 opacity-25"></i>
+            <p class="mt-3 fs-5">종목을 검색하여 주가 차트를 확인하세요</p>
+            <p class="small">KOSPI / KOSDAQ 주요 종목 지원</p>
+          </div>
+        </div>
+
+        <!-- 추천 종목 사이드바 -->
+        <div class="col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
+              <span class="fw-semibold text-secondary small">
+                <i class="bi bi-star-fill text-warning me-1"></i>추천 종목
+              </span>
+              <div class="btn-group btn-group-sm">
+                <button class="btn" :class="rankMarket === 'J' ? 'btn-primary' : 'btn-outline-secondary'" @click="setRankMarket('J')" style="font-size:0.7rem;padding:1px 6px">KOSPI</button>
+                <button class="btn" :class="rankMarket === 'Q' ? 'btn-primary' : 'btn-outline-secondary'" @click="setRankMarket('Q')" style="font-size:0.7rem;padding:1px 6px">KOSDAQ</button>
+              </div>
+            </div>
+            <div class="card-header bg-white border-top-0 py-0 px-0">
+              <ul class="nav nav-tabs border-0 px-3" style="font-size:0.8rem">
+                <li class="nav-item">
+                  <button class="nav-link py-2 px-2" :class="{ active: rankTab === 'volume' }" @click="setRankTab('volume')">거래량</button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link py-2 px-2 text-danger" :class="{ active: rankTab === 'gainers' }" @click="setRankTab('gainers')">상승</button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link py-2 px-2 text-primary" :class="{ active: rankTab === 'losers' }" @click="setRankTab('losers')">하락</button>
+                </li>
+              </ul>
+            </div>
+            <!-- 필터 -->
+            <div class="card-header bg-light border-top-0 py-2 px-3">
+              <div class="row g-1 align-items-center" style="font-size:0.78rem">
+                <div class="col-12 text-muted mb-1" style="font-size:0.72rem">필터</div>
+                <div class="col-6">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text py-0" style="font-size:0.72rem">최저가</span>
+                    <input v-model.number="filterMinPrice" type="number" min="0" class="form-control py-0" style="font-size:0.72rem" placeholder="0" @keydown.enter="loadRank" />
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text py-0" style="font-size:0.72rem">최고가</span>
+                    <input v-model.number="filterMaxPrice" type="number" min="0" class="form-control py-0" style="font-size:0.72rem" placeholder="0" @keydown.enter="loadRank" />
+                  </div>
+                </div>
+                <div class="col-8 mt-1">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text py-0" style="font-size:0.72rem">최소거래량</span>
+                    <input v-model.number="filterMinVolume" type="number" min="0" class="form-control py-0" style="font-size:0.72rem" placeholder="0" @keydown.enter="loadRank" />
+                  </div>
+                </div>
+                <div class="col-4 mt-1 d-flex gap-1">
+                  <button class="btn btn-primary btn-sm w-50 py-0" style="font-size:0.72rem" @click="loadRank">적용</button>
+                  <button class="btn btn-outline-secondary btn-sm w-50 py-0" style="font-size:0.72rem" @click="resetFilter">초기화</button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0" style="overflow-y:auto; max-height:430px">
+              <div v-if="rankLoading" class="text-center py-4">
+                <div class="spinner-border spinner-border-sm text-primary"></div>
+              </div>
+              <ul v-else class="list-group list-group-flush">
+                <li
+                  v-for="s in rankStocks"
+                  :key="s.code"
+                  class="list-group-item list-group-item-action px-3 py-2"
+                  style="cursor:pointer; font-size:0.82rem"
+                  @click="selectStockByCode(s)"
+                >
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="text-muted" style="width:18px;font-size:0.75rem">{{ s.rank }}</span>
+                      <span class="fw-semibold">{{ s.name }}</span>
+                    </div>
+                    <div class="text-end">
+                      <div class="fw-semibold" :class="s.up ? 'text-danger' : (s.changeRate < 0 ? 'text-primary' : 'text-muted')">
+                        {{ s.changeRate >= 0 ? '+' : '' }}{{ s.changeRate.toFixed(2) }}%
+                      </div>
+                      <div class="text-muted" style="font-size:0.75rem">{{ s.currentPrice.toLocaleString() }}원</div>
+                    </div>
+                  </div>
+                </li>
+                <li v-if="!rankStocks.length && !rankLoading" class="list-group-item text-center text-muted py-4 small">
+                  데이터가 없습니다.
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -274,12 +363,6 @@
         </div>
       </Teleport>
 
-      <!-- 빈 상태 -->
-      <div v-if="!selectedStock" class="text-center py-5 text-muted">
-        <i class="bi bi-bar-chart-line display-1 opacity-25"></i>
-        <p class="mt-3 fs-5">종목을 검색하여 주가 차트를 확인하세요</p>
-        <p class="small">KOSPI / KOSDAQ 주요 종목 지원</p>
-      </div>
     </div>
   </div>
 </template>
@@ -287,7 +370,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { searchStocks, getStockPrice, getStockChart, getAccount, getPortfolio, buyStock, sellStock } from '../api/index.js'
+import { searchStocks, getStockPrice, getStockChart, getAccount, getPortfolio, buyStock, sellStock, getTopVolume, getGainers, getLosers } from '../api/index.js'
 import { createChart, CrosshairMode } from 'lightweight-charts'
 
 const router = useRouter()
@@ -308,6 +391,52 @@ const maxBuyQty = computed(() => {
   if (!account.value || !stockPrice.value) return 0
   return Math.floor(account.value.balance / stockPrice.value.currentPrice)
 })
+
+// 추천 종목 사이드바
+const rankTab = ref('volume')
+const rankMarket = ref('J')
+const rankStocks = ref([])
+const rankLoading = ref(false)
+const filterMinPrice = ref(0)
+const filterMaxPrice = ref(0)
+const filterMinVolume = ref(0)
+
+async function loadRank() {
+  rankLoading.value = true
+  const params = {
+    market: rankMarket.value,
+    minPrice: filterMinPrice.value || 0,
+    maxPrice: filterMaxPrice.value || 0,
+    minVolume: filterMinVolume.value || 0,
+  }
+  try {
+    let res
+    if (rankTab.value === 'volume') res = await getTopVolume(params.market, params.minPrice, params.maxPrice, params.minVolume)
+    else if (rankTab.value === 'gainers') res = await getGainers(params.market, params.minPrice, params.maxPrice, params.minVolume)
+    else res = await getLosers(params.market, params.minPrice, params.maxPrice, params.minVolume)
+    rankStocks.value = res.data.slice(0, 15)
+  } catch {
+    rankStocks.value = []
+  } finally {
+    rankLoading.value = false
+  }
+}
+
+function setRankTab(t) { rankTab.value = t; loadRank() }
+function setRankMarket(m) { rankMarket.value = m; loadRank() }
+function resetFilter() {
+  filterMinPrice.value = 0
+  filterMaxPrice.value = 0
+  filterMinVolume.value = 0
+  loadRank()
+}
+
+async function selectStockByCode(s) {
+  searchQuery.value = s.name
+  selectedStock.value = { code: s.code, name: s.name }
+  showSuggestions.value = false
+  await loadStockData(s.code)
+}
 
 // 검색
 const searchQuery = ref('')
@@ -598,6 +727,7 @@ onMounted(async () => {
       account.value = res.data
     } catch { /* silent */ }
   }
+  loadRank()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)

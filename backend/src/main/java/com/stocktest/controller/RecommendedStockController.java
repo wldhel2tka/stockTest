@@ -16,9 +16,13 @@ public class RecommendedStockController {
 
     /** 거래량 상위 */
     @GetMapping("/volume")
-    public ResponseEntity<?> topVolume(@RequestParam(defaultValue = "J") String market) {
+    public ResponseEntity<?> topVolume(
+            @RequestParam(defaultValue = "J") String market,
+            @RequestParam(defaultValue = "0") long minPrice,
+            @RequestParam(defaultValue = "0") long maxPrice,
+            @RequestParam(defaultValue = "0") long minVolume) {
         try {
-            return ResponseEntity.ok(service.getTopVolume(market));
+            return ResponseEntity.ok(service.getTopVolume(market, minPrice, maxPrice, minVolume));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -26,9 +30,13 @@ public class RecommendedStockController {
 
     /** 상승률 상위 */
     @GetMapping("/gainers")
-    public ResponseEntity<?> gainers(@RequestParam(defaultValue = "J") String market) {
+    public ResponseEntity<?> gainers(
+            @RequestParam(defaultValue = "J") String market,
+            @RequestParam(defaultValue = "0") long minPrice,
+            @RequestParam(defaultValue = "0") long maxPrice,
+            @RequestParam(defaultValue = "0") long minVolume) {
         try {
-            return ResponseEntity.ok(service.getFluctuation(market, "0"));
+            return ResponseEntity.ok(service.getFluctuation(market, "0", minPrice, maxPrice, minVolume));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
@@ -36,9 +44,13 @@ public class RecommendedStockController {
 
     /** 하락률 상위 */
     @GetMapping("/losers")
-    public ResponseEntity<?> losers(@RequestParam(defaultValue = "J") String market) {
+    public ResponseEntity<?> losers(
+            @RequestParam(defaultValue = "J") String market,
+            @RequestParam(defaultValue = "0") long minPrice,
+            @RequestParam(defaultValue = "0") long maxPrice,
+            @RequestParam(defaultValue = "0") long minVolume) {
         try {
-            return ResponseEntity.ok(service.getFluctuation(market, "1"));
+            return ResponseEntity.ok(service.getFluctuation(market, "1", minPrice, maxPrice, minVolume));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

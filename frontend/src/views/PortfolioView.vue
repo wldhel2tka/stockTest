@@ -13,9 +13,6 @@
           <router-link to="/portfolio" class="btn btn-sm btn-light text-primary fw-semibold">
             <i class="bi bi-briefcase me-1"></i>포트폴리오
           </router-link>
-          <router-link to="/recommend" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-star me-1"></i>추천 종목
-          </router-link>
           <span class="text-white small border-start border-light ps-3">
             <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
           </span>

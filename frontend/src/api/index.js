@@ -29,8 +29,11 @@ export const getTransactions = (userId) => api.get('/mock/transactions', { param
 export const resetAccount  = (userId) => api.post('/mock/reset', { userId })
 
 // 추천 종목
-export const getTopVolume   = (market = 'J') => api.get('/recommend/volume',  { params: { market } })
-export const getGainers     = (market = 'J') => api.get('/recommend/gainers', { params: { market } })
-export const getLosers      = (market = 'J') => api.get('/recommend/losers',  { params: { market } })
+export const getTopVolume = (market = 'J', minPrice = 0, maxPrice = 0, minVolume = 0) =>
+  api.get('/recommend/volume',  { params: { market, minPrice, maxPrice, minVolume } })
+export const getGainers   = (market = 'J', minPrice = 0, maxPrice = 0, minVolume = 0) =>
+  api.get('/recommend/gainers', { params: { market, minPrice, maxPrice, minVolume } })
+export const getLosers    = (market = 'J', minPrice = 0, maxPrice = 0, minVolume = 0) =>
+  api.get('/recommend/losers',  { params: { market, minPrice, maxPrice, minVolume } })
 
 export default api
