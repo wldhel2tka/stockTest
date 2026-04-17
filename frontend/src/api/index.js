@@ -11,4 +11,13 @@ export const login = (username, password) =>
 export const register = (userData) =>
   api.post('/auth/register', userData)
 
+export const searchStocks = (query) =>
+  api.get('/stock/search', { params: { query } })
+
+export const getStockPrice = (code) =>
+  api.get('/stock/price', { params: { code } })
+
+export const getStockChart = (code, period, startDate, endDate) =>
+  api.get('/stock/chart', { params: { code, period, startDate, endDate } })
+
 export default api
