@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.stocktest.mapper.MockInvestmentMapper">
+
+    <!-- 계좌 -->
+    <select id="findAccountByUserId" parameterType="Long" resultType="VirtualAccount">
+        SELECT id, user_id, balance FROM virtual_account WHERE user_id = #{userId}
+    </select>
+
+    <insert id="createAccount" parameterType="VirtualAccount" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO virtual_account (user_id, balance)
+        VALUES (#{userId}, #{balance})
+    </insert>
+
+    <update id="updateBalance">
+        UPDATE virtual_account SET balance = #{balance} WHERE user_id = #{userId}
+    </update>
+
+    <!-- 포트폴리오 -->
+    <resultMap id="portfolioResultMap" type="Portfolio">
+        <id     property="id"        column="id"/>
+        <result property="userId"    column="user_id"/>
+        <result property="stockCode" column="stock_code"/>
+        <result property="stockName" column="stock_name"/>
+        <result property="quantity"  column="quantity"/>
+        <result property="avgPrice"  column="avg_price"/>
+    </resultMap>
+
+    <select id="findPortfolioByUserId" parameterType="Long" resultMap="portfolioResultMap">
+        SELECT * FROM portfolio WHERE user_id = #{userId} AND quantity > 0
+    </select>
+
+    <select id="findPortfolioByUserIdAndCode" resultMap="portfolioResultMap">
+        SELECT * FROM portfolio WHERE user_id = #{userId} AND stock_code = #{stockCode}
+    </select>
+
+    <insert id="insertPortfolio" parameterType="Portfolio" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO portfolio (user_id, stock_code, stock_name, quantity, avg_price)
+        VALUES (#{userId}, #{stockCode}, #{stockName}, #{quantity}, #{avgPrice})
+    </insert>
+
+    <update id="updatePortfolio" parameterType="Portfolio">
+        UPDATE portfolio
+        SET quantity = #{quantity}, avg_price = #{avgPrice}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deletePortfolio" parameterType="Long">
+        DELETE FROM portfolio WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteAllPortfolioByUserId" parameterType="Long">
+        DELETE FROM portfolio WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 거래내역 -->
+    <resultMap id="transactionResultMap" type="Transaction">
+        <id     property="id"          column="id"/>
+        <result property="userId"      column="user_id"/>
+        <result property="type"        column="type"/>
+        <result property="stockCode"   column="stock_code"/>
+        <result property="stockName"   column="stock_name"/>
+        <result property="quantity"    column="quantity"/>
+        <result property="price"       column="price"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <insert id="insertTransaction" parameterType="Transaction" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transactions (user_id, type, stock_code, stock_name, quantity, price, total_amount)
+        VALUES (#{userId}, #{type}, #{stockCode}, #{stockName}, #{quantity}, #{price}, #{totalAmount})
+    </insert>
+
+    <select id="findTransactionsByUserId" parameterType="Long" resultMap="transactionResultMap">
+        SELECT * FROM transactions WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT 100
+    </select>
+
+    <delete id="deleteAllTransactionsByUserId" parameterType="Long">
+        DELETE FROM transactions WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

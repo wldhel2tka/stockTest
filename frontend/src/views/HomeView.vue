@@ -7,6 +7,19 @@
           <i class="bi bi-graph-up-arrow me-2"></i>StockTest
         </span>
         <div class="d-flex align-items-center gap-3">
+          <router-link to="/home" class="btn btn-sm btn-light text-primary fw-semibold">
+            <i class="bi bi-search me-1"></i>주식 검색
+          </router-link>
+          <router-link to="/portfolio" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-briefcase me-1"></i>포트폴리오
+          </router-link>
+          <router-link to="/recommend" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-star me-1"></i>추천 종목
+          </router-link>
+          <span class="text-white small border-start border-light ps-3">
+            <i class="bi bi-wallet2 me-1"></i>
+            {{ account ? account.balance.toLocaleString() + '원' : '...' }}
+          </span>
           <span class="text-white small">
             <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
           </span>
@@ -133,6 +146,37 @@
         </div>
       </div>
 
+      <!-- 매수/매도 영역 -->
+      <div v-if="stockPrice" class="row mb-3">
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="d-flex gap-2">
+                  <button class="btn btn-danger px-4" @click="openTradeModal('BUY')">
+                    <i class="bi bi-cart-plus me-1"></i>매수
+                  </button>
+                  <button class="btn btn-primary px-4"
+                          :disabled="!userHolding || userHolding.quantity === 0"
+                          @click="openTradeModal('SELL')">
+                    <i class="bi bi-cart-dash me-1"></i>매도
+                  </button>
+                </div>
+                <div v-if="userHolding && userHolding.quantity > 0" class="text-muted small border-start ps-3">
+                  보유 <strong class="text-dark">{{ userHolding.quantity }}주</strong>
+                  &nbsp;|&nbsp; 평균단가 <strong class="text-dark">{{ userHolding.avgPrice.toLocaleString() }}원</strong>
+                  &nbsp;|&nbsp; 평가손익
+                  <strong :class="(stockPrice.currentPrice - userHolding.avgPrice) * userHolding.quantity >= 0 ? 'text-danger' : 'text-primary'">
+                    {{ ((stockPrice.currentPrice - userHolding.avgPrice) * userHolding.quantity).toLocaleString() }}원
+                  </strong>
+                </div>
+                <div v-else class="text-muted small border-start ps-3">보유 수량 없음</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 차트 영역 -->
       <div v-if="selectedStock" class="row">
         <div class="col-12">
@@ -163,6 +207,73 @@
         </div>
       </div>
 
+      <!-- 거래 모달 -->
+      <Teleport to="body">
+        <div v-if="showTradeModal"
+             class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+             style="background: rgba(0,0,0,0.5); z-index: 1055;"
+             @click.self="closeTradeModal">
+          <div class="card shadow-lg" style="width: 360px;">
+            <div class="card-header d-flex justify-content-between align-items-center py-2"
+                 :class="tradeType === 'BUY' ? 'bg-danger text-white' : 'bg-primary text-white'">
+              <span class="fw-bold">
+                {{ tradeType === 'BUY' ? '매수' : '매도' }} — {{ stockPrice?.name }}
+              </span>
+              <button class="btn-close btn-close-white btn-sm" @click="closeTradeModal"></button>
+            </div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted small">현재가</span>
+                <strong>{{ stockPrice?.currentPrice.toLocaleString() }}원</strong>
+              </div>
+              <div v-if="tradeType === 'BUY'" class="d-flex justify-content-between mb-2">
+                <span class="text-muted small">가용 잔고</span>
+                <strong>{{ account?.balance.toLocaleString() }}원</strong>
+              </div>
+              <div v-else class="d-flex justify-content-between mb-2">
+                <span class="text-muted small">보유 수량</span>
+                <strong>{{ userHolding?.quantity || 0 }}주</strong>
+              </div>
+              <hr class="my-2"/>
+              <div class="mb-3">
+                <label class="form-label fw-semibold small">수량</label>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary" @click="tradeQty = Math.max(1, tradeQty - 1)">−</button>
+                  <input v-model.number="tradeQty" type="number" min="1" class="form-control text-center fw-bold"/>
+                  <button class="btn btn-outline-secondary" @click="tradeQty++">+</button>
+                </div>
+                <div v-if="tradeType === 'BUY'" class="text-end mt-1">
+                  <small class="text-muted">최대 {{ maxBuyQty }}주 매수 가능</small>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">주문금액</span>
+                <strong :class="tradeType === 'BUY' ? 'text-danger' : 'text-primary'">
+                  {{ (tradeQty * (stockPrice?.currentPrice || 0)).toLocaleString() }}원
+                </strong>
+              </div>
+              <div v-if="tradeType === 'BUY'" class="d-flex justify-content-between">
+                <span class="text-muted small">매수 후 잔고</span>
+                <span class="small">{{ Math.max(0, (account?.balance || 0) - tradeQty * (stockPrice?.currentPrice || 0)).toLocaleString() }}원</span>
+              </div>
+              <div v-if="tradeError" class="alert alert-danger py-1 px-2 mt-2 small mb-0">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ tradeError }}
+              </div>
+            </div>
+            <div class="card-footer d-flex gap-2 py-2">
+              <button class="btn btn-secondary flex-fill btn-sm" @click="closeTradeModal">취소</button>
+              <button class="btn flex-fill btn-sm fw-bold"
+                      :class="tradeType === 'BUY' ? 'btn-danger' : 'btn-primary'"
+                      :disabled="tradeLoading"
+                      @click="executeTrade">
+                <span v-if="tradeLoading" class="spinner-border spinner-border-sm me-1"></span>
+                {{ tradeType === 'BUY' ? '매수 확인' : '매도 확인' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
       <!-- 빈 상태 -->
       <div v-if="!selectedStock" class="text-center py-5 text-muted">
         <i class="bi bi-bar-chart-line display-1 opacity-25"></i>
@@ -176,11 +287,27 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { searchStocks, getStockPrice, getStockChart } from '../api/index.js'
+import { searchStocks, getStockPrice, getStockChart, getAccount, getPortfolio, buyStock, sellStock } from '../api/index.js'
 import { createChart, CrosshairMode } from 'lightweight-charts'
 
 const router = useRouter()
 const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
+
+// 계좌 / 보유 종목
+const account = ref(null)
+const userHolding = ref(null)
+
+// 거래 모달
+const showTradeModal = ref(false)
+const tradeType = ref('BUY')
+const tradeQty = ref(1)
+const tradeLoading = ref(false)
+const tradeError = ref('')
+
+const maxBuyQty = computed(() => {
+  if (!account.value || !stockPrice.value) return 0
+  return Math.floor(account.value.balance / stockPrice.value.currentPrice)
+})
 
 // 검색
 const searchQuery = ref('')
@@ -275,9 +402,59 @@ async function loadStockData(code) {
     const priceRes = await getStockPrice(code)
     stockPrice.value = priceRes.data
     await loadChart(code)
+    await loadUserHolding(code)
   } catch (e) {
     searchError.value = e.response?.data?.message || '주식 데이터를 불러오지 못했습니다.'
     stockPrice.value = null
+  }
+}
+
+async function loadUserHolding(code) {
+  if (!user.value?.id) return
+  try {
+    const res = await getAccount(user.value.id)
+    account.value = res.data
+    // portfolio에서 현재 종목 찾기 (별도 포트폴리오 조회 없이 account로 대체)
+  } catch { /* silent */ }
+  // 보유 종목은 포트폴리오 API에서 가져옴
+  try {
+    const res = await getPortfolio(user.value.id)
+    userHolding.value = res.data.holdings.find(h => h.stockCode === code) || null
+  } catch { /* silent */ }
+}
+
+// 거래 모달
+function openTradeModal(type) {
+  tradeType.value = type
+  tradeQty.value = 1
+  tradeError.value = ''
+  showTradeModal.value = true
+}
+
+function closeTradeModal() {
+  showTradeModal.value = false
+  tradeError.value = ''
+}
+
+async function executeTrade() {
+  if (!user.value?.id || !selectedStock.value) return
+  if (tradeQty.value < 1) { tradeError.value = '수량을 1 이상 입력하세요.'; return }
+
+  tradeLoading.value = true
+  tradeError.value = ''
+  try {
+    if (tradeType.value === 'BUY') {
+      await buyStock(user.value.id, selectedStock.value.code, tradeQty.value)
+    } else {
+      await sellStock(user.value.id, selectedStock.value.code, tradeQty.value)
+    }
+    closeTradeModal()
+    // 잔고 및 보유 종목 갱신
+    await loadUserHolding(selectedStock.value.code)
+  } catch (e) {
+    tradeError.value = e.response?.data?.message || '거래 중 오류가 발생했습니다.'
+  } finally {
+    tradeLoading.value = false
   }
 }
 
@@ -287,17 +464,20 @@ async function loadChart(code) {
 
   try {
     const res = await getStockChart(code, selectedPeriod.value.period, startDate, endDate)
+    // 컨테이너가 보이도록 먼저 false로 전환 후 DOM 업데이트 대기
+    chartLoading.value = false
     await nextTick()
     renderChart(res.data)
   } catch (e) {
     console.error('차트 로딩 실패', e)
-  } finally {
     chartLoading.value = false
   }
 }
 
 function renderChart(data) {
   if (!chartContainer.value) return
+
+  const containerWidth = chartContainer.value.clientWidth || chartContainer.value.offsetWidth || 800
 
   if (chart) {
     chart.remove()
@@ -307,7 +487,7 @@ function renderChart(data) {
   }
 
   chart = createChart(chartContainer.value, {
-    width: chartContainer.value.clientWidth,
+    width: containerWidth,
     height: 460,
     layout: {
       background: { color: '#ffffff' },
@@ -410,7 +590,15 @@ function handleResize() {
   }
 }
 
-onMounted(() => window.addEventListener('resize', handleResize))
+onMounted(async () => {
+  window.addEventListener('resize', handleResize)
+  if (user.value?.id) {
+    try {
+      const res = await getAccount(user.value.id)
+      account.value = res.data
+    } catch { /* silent */ }
+  }
+})
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   if (chart) chart.remove()
