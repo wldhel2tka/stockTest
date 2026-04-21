@@ -43,4 +43,15 @@ public class StockController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+
+    @GetMapping("/chart/minute")
+    public ResponseEntity<?> minuteChart(
+            @RequestParam String code,
+            @RequestParam(defaultValue = "1H") String type) {
+        try {
+            return ResponseEntity.ok(stockService.getMinuteChart(code, type));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 }

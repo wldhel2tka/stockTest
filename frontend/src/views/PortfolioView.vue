@@ -13,6 +13,12 @@
           <router-link to="/portfolio" class="btn btn-sm btn-light text-primary fw-semibold">
             <i class="bi bi-briefcase me-1"></i>포트폴리오
           </router-link>
+          <router-link to="/youtube" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-youtube me-1"></i>유튜버 분석
+          </router-link>
+          <router-link to="/news" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-newspaper me-1"></i>뉴스 분석
+          </router-link>
           <span class="text-white small border-start border-light ps-3">
             <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
           </span>
@@ -38,7 +44,7 @@
             <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center py-3">
                 <div class="text-muted small mb-1"><i class="bi bi-wallet2 me-1"></i>가용 잔고</div>
-                <div class="fw-bold fs-5">{{ portfolio?.balance.toLocaleString() }}원</div>
+                <div class="fw-bold fs-5">{{ fmtMoney(portfolio?.balance) }}원</div>
               </div>
             </div>
           </div>
@@ -46,7 +52,7 @@
             <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center py-3">
                 <div class="text-muted small mb-1"><i class="bi bi-bar-chart-fill me-1"></i>주식 평가금액</div>
-                <div class="fw-bold fs-5">{{ portfolio?.totalCurrentValue.toLocaleString() }}원</div>
+                <div class="fw-bold fs-5">{{ fmtMoney(portfolio?.totalCurrentValue) }}원</div>
               </div>
             </div>
           </div>
@@ -54,9 +60,9 @@
             <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center py-3">
                 <div class="text-muted small mb-1"><i class="bi bi-piggy-bank me-1"></i>총 자산</div>
-                <div class="fw-bold fs-5">{{ portfolio?.totalAssets.toLocaleString() }}원</div>
+                <div class="fw-bold fs-5">{{ fmtMoney(portfolio?.totalAssets) }}원</div>
                 <div class="small" :class="pnlClass">
-                  {{ portfolio?.totalPnl >= 0 ? '+' : '' }}{{ portfolio?.totalPnl.toLocaleString() }}원
+                  {{ portfolio?.totalPnl >= 0 ? '+' : '' }}{{ fmtMoney(portfolio?.totalPnl) }}원
                   ({{ portfolio?.totalPnlRate >= 0 ? '+' : '' }}{{ portfolio?.totalPnlRate.toFixed(2) }}%)
                 </div>
               </div>
@@ -104,11 +110,11 @@
                       <span class="text-muted ms-1" style="font-size: 0.75rem;">{{ h.stockCode }}</span>
                     </td>
                     <td class="text-end">{{ h.quantity }}주</td>
-                    <td class="text-end">{{ h.avgPrice.toLocaleString() }}</td>
-                    <td class="text-end">{{ h.currentPrice.toLocaleString() }}</td>
-                    <td class="text-end">{{ h.currentValue.toLocaleString() }}</td>
+                    <td class="text-end">{{ fmtMoney(h.avgPrice) }}</td>
+                    <td class="text-end">{{ fmtMoney(h.currentPrice) }}</td>
+                    <td class="text-end">{{ fmtMoney(h.currentValue) }}</td>
                     <td class="text-end pe-3" :class="h.pnl >= 0 ? 'text-danger' : 'text-primary'">
-                      <strong>{{ h.pnl >= 0 ? '+' : '' }}{{ h.pnl.toLocaleString() }}원</strong>
+                      <strong>{{ h.pnl >= 0 ? '+' : '' }}{{ fmtMoney(h.pnl) }}원</strong>
                       <span class="ms-1">({{ h.pnlRate >= 0 ? '+' : '' }}{{ h.pnlRate.toFixed(2) }}%)</span>
                     </td>
                   </tr>
@@ -154,9 +160,9 @@
                       <span class="text-muted ms-1" style="font-size: 0.75rem;">{{ tx.stockCode }}</span>
                     </td>
                     <td class="text-end">{{ tx.quantity }}주</td>
-                    <td class="text-end">{{ tx.price.toLocaleString() }}</td>
+                    <td class="text-end">{{ fmtMoney(tx.price) }}</td>
                     <td class="text-end pe-3 fw-semibold" :class="tx.type === 'BUY' ? 'text-danger' : 'text-primary'">
-                      {{ tx.type === 'BUY' ? '-' : '+' }}{{ tx.totalAmount.toLocaleString() }}원
+                      {{ tx.type === 'BUY' ? '-' : '+' }}{{ fmtMoney(tx.totalAmount) }}원
                     </td>
                   </tr>
                 </tbody>
@@ -246,6 +252,10 @@ async function executeReset() {
   } finally {
     resetLoading.value = false
   }
+}
+
+function fmtMoney(v) {
+  return Math.round(v || 0).toLocaleString('ko-KR')
 }
 
 function formatDateTime(dt) {

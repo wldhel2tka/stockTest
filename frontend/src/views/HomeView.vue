@@ -13,9 +13,15 @@
           <router-link to="/portfolio" class="btn btn-sm btn-outline-light">
             <i class="bi bi-briefcase me-1"></i>포트폴리오
           </router-link>
+          <router-link to="/youtube" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-youtube me-1"></i>유튜버 분석
+          </router-link>
+          <router-link to="/news" class="btn btn-sm btn-outline-light">
+            <i class="bi bi-newspaper me-1"></i>뉴스 분석
+          </router-link>
           <span class="text-white small border-start border-light ps-3">
             <i class="bi bi-wallet2 me-1"></i>
-            {{ account ? account.balance.toLocaleString() + '원' : '...' }}
+            {{ account ? fmtMoney(account.balance) + '원' : '...' }}
           </span>
           <span class="text-white small">
             <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
@@ -99,11 +105,11 @@
                   </div>
                   <div class="d-flex align-items-baseline gap-3">
                     <span class="display-6 fw-bold lh-1" :class="priceColorClass">
-                      {{ stockPrice.currentPrice.toLocaleString() }}
+                      {{ fmtMoney(stockPrice.currentPrice) }}
                       <small class="fs-6 fw-normal">원</small>
                     </span>
                     <span class="fs-5 fw-semibold" :class="priceColorClass">
-                      {{ stockPrice.change >= 0 ? '+' : '' }}{{ stockPrice.change.toLocaleString() }}
+                      {{ stockPrice.change >= 0 ? '+' : '' }}{{ fmtMoney(stockPrice.change) }}
                       ({{ stockPrice.changeRate >= 0 ? '+' : '' }}{{ stockPrice.changeRate.toFixed(2) }}%)
                     </span>
                   </div>
@@ -114,19 +120,19 @@
                     <div class="col-3">
                       <div class="bg-light rounded p-2">
                         <div class="text-muted" style="font-size: 0.7rem;">시가</div>
-                        <div class="fw-semibold small">{{ stockPrice.openPrice.toLocaleString() }}</div>
+                        <div class="fw-semibold small">{{ fmtMoney(stockPrice.openPrice) }}</div>
                       </div>
                     </div>
                     <div class="col-3">
                       <div class="bg-light rounded p-2">
                         <div class="text-muted" style="font-size: 0.7rem;">고가</div>
-                        <div class="fw-semibold small text-danger">{{ stockPrice.highPrice.toLocaleString() }}</div>
+                        <div class="fw-semibold small text-danger">{{ fmtMoney(stockPrice.highPrice) }}</div>
                       </div>
                     </div>
                     <div class="col-3">
                       <div class="bg-light rounded p-2">
                         <div class="text-muted" style="font-size: 0.7rem;">저가</div>
-                        <div class="fw-semibold small text-primary">{{ stockPrice.lowPrice.toLocaleString() }}</div>
+                        <div class="fw-semibold small text-primary">{{ fmtMoney(stockPrice.lowPrice) }}</div>
                       </div>
                     </div>
                     <div class="col-3">
@@ -161,10 +167,10 @@
                 </div>
                 <div v-if="userHolding && userHolding.quantity > 0" class="text-muted small border-start ps-3">
                   보유 <strong class="text-dark">{{ userHolding.quantity }}주</strong>
-                  &nbsp;|&nbsp; 평균단가 <strong class="text-dark">{{ userHolding.avgPrice.toLocaleString() }}원</strong>
+                  &nbsp;|&nbsp; 평균단가 <strong class="text-dark">{{ fmtMoney(userHolding.avgPrice) }}원</strong>
                   &nbsp;|&nbsp; 평가손익
                   <strong :class="(stockPrice.currentPrice - userHolding.avgPrice) * userHolding.quantity >= 0 ? 'text-danger' : 'text-primary'">
-                    {{ ((stockPrice.currentPrice - userHolding.avgPrice) * userHolding.quantity).toLocaleString() }}원
+                    {{ fmtMoney((stockPrice.currentPrice - userHolding.avgPrice) * userHolding.quantity) }}원
                   </strong>
                 </div>
                 <div v-else class="text-muted small border-start ps-3">보유 수량 없음</div>
@@ -177,7 +183,7 @@
       <!-- 차트 + 추천 종목 사이드바 -->
       <div class="row g-3">
         <!-- 차트 -->
-        <div class="col-lg-8">
+        <div class="col-lg-8 d-flex flex-column gap-3">
           <div v-if="selectedStock" class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 px-3">
               <span class="fw-semibold text-secondary small">
@@ -206,6 +212,52 @@
             <i class="bi bi-bar-chart-line display-1 opacity-25"></i>
             <p class="mt-3 fs-5">종목을 검색하여 주가 차트를 확인하세요</p>
             <p class="small">KOSPI / KOSDAQ 주요 종목 지원</p>
+          </div>
+
+          <!-- 실시간 체결 -->
+          <div v-if="selectedStock" class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 px-3">
+              <span class="fw-semibold text-secondary small">
+                <i class="bi bi-activity me-1"></i>실시간 체결
+                <span class="badge bg-danger ms-1 rounded-pill" style="font-size:0.6rem;animation:blink 1.2s infinite">LIVE</span>
+              </span>
+              <span class="text-muted" style="font-size:0.75rem">최근 {{ trades.length }}건 표시</span>
+            </div>
+            <div class="card-body p-0">
+              <div style="height:220px; overflow-y:auto;" ref="tradesContainer">
+                <table class="table table-sm table-hover mb-0" style="font-size:0.8rem;">
+                  <thead class="table-light" style="position:sticky;top:0;z-index:1">
+                    <tr>
+                      <th class="fw-normal text-muted py-1 ps-3" style="width:70px">시간</th>
+                      <th class="fw-normal text-muted py-1 text-end" style="width:100px">체결가</th>
+                      <th class="fw-normal text-muted py-1 text-end" style="width:80px">등락</th>
+                      <th class="fw-normal text-muted py-1 text-end" style="width:80px">체결량</th>
+                      <th class="fw-normal text-muted py-1 text-center pe-3" style="width:60px">구분</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(t, i) in trades" :key="i" :class="i === 0 ? 'table-active' : ''">
+                      <td class="text-muted py-1 ps-3">{{ t.time }}</td>
+                      <td class="py-1 text-end fw-semibold" :class="t.side === '매수' ? 'text-danger' : t.side === '매도' ? 'text-primary' : 'text-muted'">
+                        {{ fmtMoney(t.price) }}
+                      </td>
+                      <td class="py-1 text-end small" :class="t.changeRate > 0 ? 'text-danger' : t.changeRate < 0 ? 'text-primary' : 'text-muted'">
+                        {{ t.changeRate > 0 ? '+' : '' }}{{ t.changeRate.toFixed(2) }}%
+                      </td>
+                      <td class="py-1 text-end text-muted">{{ t.volume.toLocaleString() }}</td>
+                      <td class="py-1 text-center pe-3">
+                        <span class="badge rounded-pill"
+                          :class="t.side === '매수' ? 'bg-danger' : t.side === '매도' ? 'bg-primary' : 'bg-secondary'"
+                          style="font-size:0.62rem">{{ t.side }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-if="trades.length === 0" class="text-center py-4 text-muted small">
+                  <span class="spinner-border spinner-border-sm me-2"></span>체결 데이터 수신 대기 중...
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -283,7 +335,7 @@
                       <div class="fw-semibold" :class="s.up ? 'text-danger' : (s.changeRate < 0 ? 'text-primary' : 'text-muted')">
                         {{ s.changeRate >= 0 ? '+' : '' }}{{ s.changeRate.toFixed(2) }}%
                       </div>
-                      <div class="text-muted" style="font-size:0.75rem">{{ s.currentPrice.toLocaleString() }}원</div>
+                      <div class="text-muted" style="font-size:0.75rem">{{ fmtMoney(s.currentPrice) }}원</div>
                     </div>
                   </div>
                 </li>
@@ -313,11 +365,11 @@
             <div class="card-body">
               <div class="d-flex justify-content-between mb-2">
                 <span class="text-muted small">현재가</span>
-                <strong>{{ stockPrice?.currentPrice.toLocaleString() }}원</strong>
+                <strong>{{ fmtMoney(stockPrice?.currentPrice) }}원</strong>
               </div>
               <div v-if="tradeType === 'BUY'" class="d-flex justify-content-between mb-2">
                 <span class="text-muted small">가용 잔고</span>
-                <strong>{{ account?.balance.toLocaleString() }}원</strong>
+                <strong>{{ fmtMoney(account?.balance) }}원</strong>
               </div>
               <div v-else class="d-flex justify-content-between mb-2">
                 <span class="text-muted small">보유 수량</span>
@@ -338,12 +390,12 @@
               <div class="d-flex justify-content-between mb-1">
                 <span class="text-muted small">주문금액</span>
                 <strong :class="tradeType === 'BUY' ? 'text-danger' : 'text-primary'">
-                  {{ (tradeQty * (stockPrice?.currentPrice || 0)).toLocaleString() }}원
+                  {{ fmtMoney(tradeQty * (stockPrice?.currentPrice || 0)) }}원
                 </strong>
               </div>
               <div v-if="tradeType === 'BUY'" class="d-flex justify-content-between">
                 <span class="text-muted small">매수 후 잔고</span>
-                <span class="small">{{ Math.max(0, (account?.balance || 0) - tradeQty * (stockPrice?.currentPrice || 0)).toLocaleString() }}원</span>
+                <span class="small">{{ fmtMoney(Math.max(0, (account?.balance || 0) - tradeQty * (stockPrice?.currentPrice || 0))) }}원</span>
               </div>
               <div v-if="tradeError" class="alert alert-danger py-1 px-2 mt-2 small mb-0">
                 <i class="bi bi-exclamation-circle me-1"></i>{{ tradeError }}
@@ -368,9 +420,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { searchStocks, getStockPrice, getStockChart, getAccount, getPortfolio, buyStock, sellStock, getTopVolume, getGainers, getLosers } from '../api/index.js'
+import { searchStocks, getStockPrice, getStockChart, getMinuteChart, getAccount, getPortfolio, buyStock, sellStock, getTopVolume, getGainers, getLosers } from '../api/index.js'
 import { createChart, CrosshairMode } from 'lightweight-charts'
 
 const router = useRouter()
@@ -450,6 +502,71 @@ let searchTimer = null
 const selectedStock = ref(null)
 const stockPrice = ref(null)
 
+// 실시간 체결
+const trades = ref([])
+const tradesContainer = ref(null)
+let eventSource = null
+const realtimeCandle = ref(null) // { time, open, high, low, close, volume }
+
+function subscribeRealtime(code) {
+  if (eventSource) { eventSource.close(); eventSource = null }
+  trades.value = []
+  eventSource = new EventSource(`/api/realtime/stream?code=${code}`)
+  eventSource.onmessage = (e) => {
+    const trade = JSON.parse(e.data)
+    trades.value.unshift(trade)
+    if (trades.value.length > 10) trades.value.pop()
+    updateChartRealtime(trade)
+  }
+  eventSource.onerror = () => {
+    // 브라우저가 자동 재연결
+  }
+}
+
+function todayStr() {
+  const d = new Date()
+  return d.getFullYear() + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+    + String(d.getDate()).padStart(2, '0')
+}
+
+function currentMinuteTs() {
+  const now = new Date()
+  now.setSeconds(0, 0)
+  return Math.floor(now.getTime() / 1000)
+}
+
+function updateChartRealtime(trade) {
+  if (!candleSeries || !volumeSeries) return
+
+  const isIntraday = selectedPeriod.value.type === 'minute'
+  const newKey = isIntraday ? currentMinuteTs() : todayStr()
+  const c = realtimeCandle.value
+
+  if (!c || c.timeKey !== newKey) {
+    realtimeCandle.value = {
+      timeKey: newKey, time: newKey,
+      open: trade.price, high: trade.price, low: trade.price, close: trade.price,
+      volume: trade.volume,
+    }
+  } else {
+    realtimeCandle.value = {
+      ...c,
+      high: Math.max(c.high, trade.price),
+      low: Math.min(c.low, trade.price),
+      close: trade.price,
+      volume: c.volume + trade.volume,
+    }
+  }
+
+  const u = realtimeCandle.value
+  candleSeries.update({ time: u.time, open: u.open, high: u.high, low: u.low, close: u.close })
+  volumeSeries.update({
+    time: u.time, value: u.volume,
+    color: u.close >= u.open ? 'rgba(239,83,80,0.4)' : 'rgba(25,118,210,0.4)',
+  })
+}
+
 // 차트
 const chartContainer = ref(null)
 const chartLoading = ref(false)
@@ -459,13 +576,11 @@ let volumeSeries = null
 
 // 기간 옵션
 const periodOptions = [
-  { key: '1M',  label: '1개월', period: 'D', days: 30 },
-  { key: '3M',  label: '3개월', period: 'D', days: 90 },
-  { key: '6M',  label: '6개월', period: 'D', days: 180 },
-  { key: '1Y',  label: '1년',   period: 'W', days: 365 },
-  { key: '3Y',  label: '3년',   period: 'M', days: 1095 },
+  { key: '1H', label: '1시간', type: 'minute', minuteType: '1H' },
+  { key: '1D', label: '1일',   type: 'minute', minuteType: '1D' },
+  { key: '1W', label: '1주일', type: 'daily',  period: 'D', days: 14 },
 ]
-const selectedPeriod = ref(periodOptions[1]) // 기본 3개월
+const selectedPeriod = ref(periodOptions[1]) // 기본 1일
 
 // Computed
 const changeZero = computed(() => stockPrice.value && stockPrice.value.change === 0)
@@ -532,6 +647,7 @@ async function loadStockData(code) {
     stockPrice.value = priceRes.data
     await loadChart(code)
     await loadUserHolding(code)
+    subscribeRealtime(code)
   } catch (e) {
     searchError.value = e.response?.data?.message || '주식 데이터를 불러오지 못했습니다.'
     stockPrice.value = null
@@ -589,21 +705,24 @@ async function executeTrade() {
 
 async function loadChart(code) {
   chartLoading.value = true
-  const { startDate, endDate } = getDateRange(selectedPeriod.value.days)
-
   try {
-    const res = await getStockChart(code, selectedPeriod.value.period, startDate, endDate)
-    // 컨테이너가 보이도록 먼저 false로 전환 후 DOM 업데이트 대기
+    let res
+    if (selectedPeriod.value.type === 'minute') {
+      res = await getMinuteChart(code, selectedPeriod.value.minuteType)
+    } else {
+      const { startDate, endDate } = getDateRange(selectedPeriod.value.days)
+      res = await getStockChart(code, selectedPeriod.value.period, startDate, endDate)
+    }
     chartLoading.value = false
     await nextTick()
-    renderChart(res.data)
+    renderChart(res.data, selectedPeriod.value.type === 'minute')
   } catch (e) {
     console.error('차트 로딩 실패', e)
     chartLoading.value = false
   }
 }
 
-function renderChart(data) {
+function renderChart(data, isIntraday = false) {
   if (!chartContainer.value) return
 
   const containerWidth = chartContainer.value.clientWidth || chartContainer.value.offsetWidth || 800
@@ -635,7 +754,8 @@ function renderChart(data) {
     },
     timeScale: {
       borderColor: 'rgba(209, 213, 219, 0.8)',
-      timeVisible: false,
+      timeVisible: isIntraday,
+      secondsVisible: false,
       fixLeftEdge: true,
       fixRightEdge: true,
     },
@@ -650,6 +770,7 @@ function renderChart(data) {
     borderDownColor: '#1976D2',
     wickUpColor: '#ef5350',
     wickDownColor: '#1976D2',
+    priceFormat: { type: 'price', precision: 0, minMove: 1 },
   })
 
   // 거래량 히스토그램
@@ -662,8 +783,10 @@ function renderChart(data) {
     scaleMargins: { top: 0.75, bottom: 0 },
   })
 
+  const timeOf = d => d.timestamp ?? d.date
+
   const candleData = data.map(d => ({
-    time: d.date,
+    time: timeOf(d),
     open: d.open,
     high: d.high,
     low: d.low,
@@ -671,7 +794,7 @@ function renderChart(data) {
   }))
 
   const volData = data.map(d => ({
-    time: d.date,
+    time: timeOf(d),
     value: d.volume,
     color: d.close >= d.open ? 'rgba(239,83,80,0.4)' : 'rgba(25,118,210,0.4)',
   }))
@@ -679,6 +802,19 @@ function renderChart(data) {
   candleSeries.setData(candleData)
   volumeSeries.setData(volData)
   chart.timeScale().fitContent()
+
+  // 실시간 업데이트를 위한 마지막 캔들 상태 저장
+  if (data.length > 0) {
+    const last = data[data.length - 1]
+    const timeKey = last.timestamp ?? last.date
+    realtimeCandle.value = {
+      timeKey,
+      time: timeKey,
+      open: last.open, high: last.high, low: last.low, close: last.close, volume: last.volume,
+    }
+  } else {
+    realtimeCandle.value = null
+  }
 }
 
 async function changePeriod(p) {
@@ -702,10 +838,14 @@ function fmtDate(d) {
   return `${y}${m}${day}`
 }
 
+function fmtMoney(v) {
+  return Math.round(v || 0).toLocaleString('ko-KR')
+}
+
 function formatVolume(v) {
   if (v >= 100000000) return (v / 100000000).toFixed(1) + '억'
   if (v >= 10000) return (v / 10000).toFixed(1) + '만'
-  return v.toLocaleString()
+  return Math.round(v || 0).toLocaleString('ko-KR')
 }
 
 function handleLogout() {
@@ -732,5 +872,13 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   if (chart) chart.remove()
+  if (eventSource) eventSource.close()
 })
 </script>
+
+<style scoped>
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+</style>

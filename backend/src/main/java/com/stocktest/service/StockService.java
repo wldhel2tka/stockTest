@@ -10,6 +10,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -190,6 +192,93 @@ public class StockService {
                 })
                 .sorted(Comparator.comparing(ChartCandle::getDate))
                 .collect(Collectors.toList());
+    }
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /**
+     * 분봉 차트 조회 (KIS FHKST03010200)
+     * type: "1H" = 최근 1시간, "1D" = 오늘 전체
+     */
+    @SuppressWarnings("unchecked")
+    public List<ChartCandle> getMinuteChart(String code, String type) {
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        ZonedDateTime cutoff = type.equals("1H")
+                ? now.minusHours(1)
+                : now.toLocalDate().atStartOfDay(KST);
+
+        int maxPages = type.equals("1H") ? 3 : 20;
+        List<ChartCandle> result = new ArrayList<>();
+        String queryTime = now.format(DateTimeFormatter.ofPattern("HHmmss"));
+
+        for (int page = 0; page < maxPages; page++) {
+            List<ChartCandle> batch = fetchMinuteBatch(code, queryTime);
+            if (batch.isEmpty()) break;
+
+            result.addAll(batch);
+
+            ChartCandle oldest = batch.get(batch.size() - 1);
+            ZonedDateTime oldestTime = ZonedDateTime.ofInstant(
+                    Instant.ofEpochSecond(oldest.getTimestamp()), KST);
+
+            if (!oldestTime.isAfter(cutoff)) break;
+
+            // 다음 페이지: 가장 오래된 시간의 1초 전
+            queryTime = oldestTime.minusSeconds(1).format(DateTimeFormatter.ofPattern("HHmmss"));
+        }
+
+        return result.stream()
+                .filter(c -> c.getTimestamp() != null &&
+                             ZonedDateTime.ofInstant(Instant.ofEpochSecond(c.getTimestamp()), KST).isAfter(cutoff))
+                .sorted(Comparator.comparing(ChartCandle::getTimestamp))
+                .collect(Collectors.toList());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ChartCandle> fetchMinuteBatch(String code, String time) {
+        String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice" +
+                "?FID_ETC_CLS_CODE=" +
+                "&FID_COND_MRKT_DIV_CODE=J" +
+                "&FID_INPUT_ISCD=" + code +
+                "&FID_INPUT_HOUR_1=" + time +
+                "&FID_PW_DATA_INCU_YN=Y";
+
+        try {
+            HttpEntity<Void> request = new HttpEntity<>(createHeaders("FHKST03010200"));
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, request, Map.class);
+
+            Map<String, Object> body = response.getBody();
+            if (body == null || !"0".equals(body.get("rt_cd"))) return List.of();
+
+            List<Map<String, Object>> output2 = (List<Map<String, Object>>) body.get("output2");
+            if (output2 == null) return List.of();
+
+            return output2.stream()
+                    .filter(item -> {
+                        Object vol = item.get("cntg_vol");
+                        return vol != null && !"0".equals(vol.toString().trim());
+                    })
+                    .map(item -> {
+                        String dateStr = (String) item.get("stck_bsop_date");
+                        String timeStr = (String) item.get("stck_cntg_hour");
+                        LocalDateTime ldt = LocalDateTime.parse(dateStr + timeStr, DT_FMT);
+                        long ts = ldt.atZone(KST).toEpochSecond();
+
+                        ChartCandle c = new ChartCandle();
+                        c.setTimestamp(ts);
+                        c.setOpen(parseLong(item.get("stck_oprc")));
+                        c.setHigh(parseLong(item.get("stck_hgpr")));
+                        c.setLow(parseLong(item.get("stck_lwpr")));
+                        c.setClose(parseLong(item.get("stck_prpr")));
+                        c.setVolume(parseLong(item.get("cntg_vol")));
+                        return c;
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("분봉 배치 조회 실패 (time={}): {}", time, e.getMessage());
+            return List.of();
+        }
     }
 
     private HttpHeaders createHeaders(String trId) {

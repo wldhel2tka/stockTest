@@ -20,6 +20,9 @@ export const getStockPrice = (code) =>
 export const getStockChart = (code, period, startDate, endDate) =>
   api.get('/stock/chart', { params: { code, period, startDate, endDate } })
 
+export const getMinuteChart = (code, type) =>
+  api.get('/stock/chart/minute', { params: { code, type } })
+
 // 모의투자
 export const getAccount    = (userId) => api.get('/mock/account', { params: { userId } })
 export const getPortfolio  = (userId) => api.get('/mock/portfolio', { params: { userId } })
@@ -35,5 +38,12 @@ export const getGainers   = (market = 'J', minPrice = 0, maxPrice = 0, minVolume
   api.get('/recommend/gainers', { params: { market, minPrice, maxPrice, minVolume } })
 export const getLosers    = (market = 'J', minPrice = 0, maxPrice = 0, minVolume = 0) =>
   api.get('/recommend/losers',  { params: { market, minPrice, maxPrice, minVolume } })
+
+// 유튜버 분석
+export const getYoutubeAnalysis = () => api.get('/youtube/analysis')
+export const clearYoutubeCache  = () => api.post('/youtube/cache/clear')
+
+// 뉴스 분석
+export const getNewsAnalysis = (refresh = false) => api.get('/news/analysis', { params: { refresh } })
 
 export default api

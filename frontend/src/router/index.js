@@ -3,12 +3,16 @@ import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import HomeView from '../views/HomeView.vue'
 import PortfolioView from '../views/PortfolioView.vue'
+import YoutubeView from '../views/YoutubeView.vue'
+import NewsView from '../views/NewsView.vue'
 
 const routes = [
   { path: '/',           name: 'Login',     component: LoginView },
   { path: '/register',   name: 'Register',  component: RegisterView },
   { path: '/home',       name: 'Home',      component: HomeView,      meta: { requiresAuth: true } },
   { path: '/portfolio',  name: 'Portfolio', component: PortfolioView, meta: { requiresAuth: true } },
+  { path: '/youtube',    name: 'Youtube',   component: YoutubeView,   meta: { requiresAuth: true } },
+  { path: '/news',       name: 'News',      component: NewsView,      meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({
