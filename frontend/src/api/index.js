@@ -46,4 +46,20 @@ export const clearYoutubeCache  = () => api.post('/youtube/cache/clear')
 // 뉴스 분석
 export const getNewsAnalysis = (refresh = false) => api.get('/news/analysis', { params: { refresh } })
 
+// 기술적 분석
+export const getSignal = (code) => api.get('/analysis/signal', { params: { code } })
+
+// 자동매매
+export const getAutoTradingStatus = () => api.get('/auto-trading/status')
+export const toggleAutoTrading    = (enabled) => api.post('/auto-trading/toggle', { enabled })
+export const setAutoTradingConfig = (config) => api.post('/auto-trading/config', config)
+export const getAutoTradingLogs   = () => api.get('/auto-trading/logs')
+export const runAutoTradingNow    = () => api.post('/auto-trading/run-now')
+
+// 실계좌
+export const realOrder      = (code, quantity, side, orderType = 'MARKET', price = 0) =>
+  api.post('/real/order', { code, quantity, side, orderType, price })
+export const getRealBalance = () => api.get('/real/balance')
+export const getRealOrders  = () => api.get('/real/orders')
+
 export default api

@@ -1,38 +1,5 @@
 <template>
-  <div class="min-vh-100 bg-light">
-    <!-- 네비게이션 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-      <div class="container-fluid px-4">
-        <span class="navbar-brand fw-bold fs-5">
-          <i class="bi bi-graph-up-arrow me-2"></i>StockTest
-        </span>
-        <div class="d-flex align-items-center gap-3">
-          <router-link to="/home" class="btn btn-sm btn-light text-primary fw-semibold">
-            <i class="bi bi-search me-1"></i>주식 검색
-          </router-link>
-          <router-link to="/portfolio" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-briefcase me-1"></i>포트폴리오
-          </router-link>
-          <router-link to="/youtube" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-youtube me-1"></i>유튜버 분석
-          </router-link>
-          <router-link to="/news" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-newspaper me-1"></i>뉴스 분석
-          </router-link>
-          <span class="text-white small border-start border-light ps-3">
-            <i class="bi bi-wallet2 me-1"></i>
-            {{ account ? fmtMoney(account.balance) + '원' : '...' }}
-          </span>
-          <span class="text-white small">
-            <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
-          </span>
-          <button class="btn btn-outline-light btn-sm" @click="handleLogout">
-            <i class="bi bi-box-arrow-right me-1"></i>로그아웃
-          </button>
-        </div>
-      </div>
-    </nav>
-
+  <div>
     <div class="container-fluid px-4 mt-4">
       <!-- 검색 영역 -->
       <div class="row justify-content-center mb-4">
@@ -143,6 +110,58 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기술적 분석 신호 -->
+      <div v-if="stockPrice" class="row mb-3">
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              <div v-if="signalLoading" class="d-flex align-items-center gap-2 text-muted small">
+                <span class="spinner-border spinner-border-sm"></span> 기술적 분석 중...
+              </div>
+              <div v-else-if="signal" class="d-flex align-items-center gap-3 flex-wrap">
+                <!-- 종합 신호 -->
+                <span class="badge fs-6 px-3 py-2"
+                  :class="signal.signal === 'BUY' ? 'bg-danger' : signal.signal === 'SELL' ? 'bg-primary' : 'bg-secondary'">
+                  <i class="bi me-1"
+                    :class="signal.signal === 'BUY' ? 'bi-arrow-up-circle-fill' : signal.signal === 'SELL' ? 'bi-arrow-down-circle-fill' : 'bi-dash-circle-fill'">
+                  </i>
+                  {{ signal.signal === 'BUY' ? '매수 우세' : signal.signal === 'SELL' ? '매도 우세' : '중립' }}
+                </span>
+                <!-- 지표들 -->
+                <div class="d-flex gap-3 flex-wrap small">
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted">RSI</span>
+                    <span class="fw-bold"
+                      :class="signal.rsi <= 30 ? 'text-danger' : signal.rsi >= 70 ? 'text-primary' : 'text-dark'">
+                      {{ signal.rsi?.toFixed(1) }}
+                    </span>
+                    <span class="badge badge-sm rounded-pill"
+                      :class="signal.rsiSignal === 'BUY' ? 'bg-danger' : signal.rsiSignal === 'SELL' ? 'bg-primary' : 'bg-light text-dark'">
+                      {{ signal.rsi <= 30 ? '과매도' : signal.rsi >= 70 ? '과매수' : '중립' }}
+                    </span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted">이동평균</span>
+                    <span class="fw-bold"
+                      :class="signal.maSignal === 'BUY' ? 'text-danger' : signal.maSignal === 'SELL' ? 'text-primary' : 'text-dark'">
+                      5MA {{ signal.ma5 > signal.ma20 ? '▲' : signal.ma5 < signal.ma20 ? '▼' : '—' }} 20MA
+                    </span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted">거래량</span>
+                    <span class="fw-bold" :class="signal.volumeSignal === 'HIGH' ? 'text-warning' : 'text-dark'">
+                      {{ signal.volumeRatio?.toFixed(1) }}배
+                    </span>
+                    <span v-if="signal.volumeSignal === 'HIGH'" class="badge bg-warning text-dark rounded-pill">급등</span>
+                  </div>
+                </div>
+                <div class="text-muted small ms-auto">{{ signal.description }}</div>
               </div>
             </div>
           </div>
@@ -268,10 +287,11 @@
               <span class="fw-semibold text-secondary small">
                 <i class="bi bi-star-fill text-warning me-1"></i>추천 종목
               </span>
-              <div class="btn-group btn-group-sm">
+              <div v-if="rankTab !== 'sector'" class="btn-group btn-group-sm">
                 <button class="btn" :class="rankMarket === 'J' ? 'btn-primary' : 'btn-outline-secondary'" @click="setRankMarket('J')" style="font-size:0.7rem;padding:1px 6px">KOSPI</button>
                 <button class="btn" :class="rankMarket === 'Q' ? 'btn-primary' : 'btn-outline-secondary'" @click="setRankMarket('Q')" style="font-size:0.7rem;padding:1px 6px">KOSDAQ</button>
               </div>
+              <span v-else class="text-muted" style="font-size:0.72rem;">{{ selectedSector?.name }}</span>
             </div>
             <div class="card-header bg-white border-top-0 py-0 px-0">
               <ul class="nav nav-tabs border-0 px-3" style="font-size:0.8rem">
@@ -284,10 +304,28 @@
                 <li class="nav-item">
                   <button class="nav-link py-2 px-2 text-primary" :class="{ active: rankTab === 'losers' }" @click="setRankTab('losers')">하락</button>
                 </li>
+                <li class="nav-item">
+                  <button class="nav-link py-2 px-2 text-success" :class="{ active: rankTab === 'sector' }" @click="setRankTab('sector')">섹터</button>
+                </li>
               </ul>
             </div>
+            <!-- 섹터 선택 -->
+            <div v-if="rankTab === 'sector'" class="card-header bg-light border-top-0 py-2 px-3">
+              <div class="d-flex flex-wrap gap-1">
+                <button
+                  v-for="sec in sectors"
+                  :key="sec.name"
+                  class="btn btn-sm"
+                  :class="selectedSector?.name === sec.name ? 'btn-primary' : 'btn-outline-secondary'"
+                  style="font-size:0.72rem;padding:2px 8px"
+                  @click="loadSectorStocks(sec)"
+                >
+                  <i :class="sec.icon + ' me-1'"></i>{{ sec.name }}
+                </button>
+              </div>
+            </div>
             <!-- 필터 -->
-            <div class="card-header bg-light border-top-0 py-2 px-3">
+            <div v-if="rankTab !== 'sector'" class="card-header bg-light border-top-0 py-2 px-3">
               <div class="row g-1 align-items-center" style="font-size:0.78rem">
                 <div class="col-12 text-muted mb-1" style="font-size:0.72rem">필터</div>
                 <div class="col-6">
@@ -420,12 +458,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { searchStocks, getStockPrice, getStockChart, getMinuteChart, getAccount, getPortfolio, buyStock, sellStock, getTopVolume, getGainers, getLosers } from '../api/index.js'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { searchStocks, getStockPrice, getStockChart, getMinuteChart, getAccount, getPortfolio, buyStock, sellStock, getTopVolume, getGainers, getLosers, getSignal } from '../api/index.js'
 import { createChart, CrosshairMode } from 'lightweight-charts'
 
-const router = useRouter()
 const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
 
 // 계좌 / 보유 종목
@@ -453,6 +489,80 @@ const filterMinPrice = ref(0)
 const filterMaxPrice = ref(0)
 const filterMinVolume = ref(0)
 
+// 섹터
+const sectors = [
+  { name: '반도체', icon: 'bi bi-cpu', stocks: [
+    { code: '005930', name: '삼성전자' },
+    { code: '000660', name: 'SK하이닉스' },
+    { code: '042700', name: '한미반도체' },
+    { code: '058470', name: '리노공업' },
+    { code: '240810', name: '원익IPS' },
+    { code: '403870', name: 'HPSP' },
+  ]},
+  { name: '2차전지', icon: 'bi bi-battery-charging', stocks: [
+    { code: '373220', name: 'LG에너지솔루션' },
+    { code: '006400', name: '삼성SDI' },
+    { code: '247540', name: '에코프로비엠' },
+    { code: '086520', name: '에코프로' },
+    { code: '003670', name: '포스코퓨처엠' },
+  ]},
+  { name: 'AI/플랫폼', icon: 'bi bi-robot', stocks: [
+    { code: '035420', name: 'NAVER' },
+    { code: '035720', name: '카카오' },
+    { code: '259960', name: '크래프톤' },
+    { code: '112040', name: '위메이드' },
+    { code: '263750', name: '펄어비스' },
+  ]},
+  { name: '바이오', icon: 'bi bi-heart-pulse', stocks: [
+    { code: '207940', name: '삼성바이오로직스' },
+    { code: '068270', name: '셀트리온' },
+    { code: '128940', name: '한미약품' },
+    { code: '000100', name: '유한양행' },
+    { code: '185750', name: '종근당' },
+  ]},
+  { name: '자동차', icon: 'bi bi-car-front', stocks: [
+    { code: '005380', name: '현대차' },
+    { code: '000270', name: '기아' },
+    { code: '012330', name: '현대모비스' },
+    { code: '204320', name: 'HL만도' },
+    { code: '018880', name: '한온시스템' },
+  ]},
+  { name: '금융', icon: 'bi bi-bank', stocks: [
+    { code: '105560', name: 'KB금융' },
+    { code: '055550', name: '신한지주' },
+    { code: '086790', name: '하나금융지주' },
+    { code: '316140', name: '우리금융지주' },
+    { code: '000810', name: '삼성화재' },
+  ]},
+]
+const selectedSector = ref(null)
+
+async function loadSectorStocks(sector) {
+  selectedSector.value = sector
+  rankLoading.value = true
+  try {
+    const results = await Promise.all(
+      sector.stocks.map((s, idx) =>
+        getStockPrice(s.code)
+          .then(r => ({
+            rank: idx + 1,
+            code: s.code,
+            name: r.data.name || s.name,
+            currentPrice: r.data.currentPrice,
+            changeRate: r.data.changeRate,
+            up: r.data.up,
+          }))
+          .catch(() => null)
+      )
+    )
+    rankStocks.value = results.filter(Boolean)
+  } catch {
+    rankStocks.value = []
+  } finally {
+    rankLoading.value = false
+  }
+}
+
 async function loadRank() {
   rankLoading.value = true
   const params = {
@@ -474,7 +584,14 @@ async function loadRank() {
   }
 }
 
-function setRankTab(t) { rankTab.value = t; loadRank() }
+function setRankTab(t) {
+  rankTab.value = t
+  if (t === 'sector') {
+    loadSectorStocks(selectedSector.value ?? sectors[0])
+  } else {
+    loadRank()
+  }
+}
 function setRankMarket(m) { rankMarket.value = m; loadRank() }
 function resetFilter() {
   filterMinPrice.value = 0
@@ -501,6 +618,10 @@ let searchTimer = null
 // 선택된 종목
 const selectedStock = ref(null)
 const stockPrice = ref(null)
+
+// 기술적 분석 신호
+const signal = ref(null)
+const signalLoading = ref(false)
 
 // 실시간 체결
 const trades = ref([])
@@ -642,12 +763,14 @@ async function selectStock(stock) {
 }
 
 async function loadStockData(code) {
+  signal.value = null
   try {
     const priceRes = await getStockPrice(code)
     stockPrice.value = priceRes.data
     await loadChart(code)
     await loadUserHolding(code)
     subscribeRealtime(code)
+    loadSignal(code)
   } catch (e) {
     searchError.value = e.response?.data?.message || '주식 데이터를 불러오지 못했습니다.'
     stockPrice.value = null
@@ -666,6 +789,15 @@ async function loadUserHolding(code) {
     const res = await getPortfolio(user.value.id)
     userHolding.value = res.data.holdings.find(h => h.stockCode === code) || null
   } catch { /* silent */ }
+}
+
+async function loadSignal(code) {
+  signalLoading.value = true
+  try {
+    const res = await getSignal(code)
+    signal.value = res.data
+  } catch { signal.value = null }
+  finally { signalLoading.value = false }
 }
 
 // 거래 모달
@@ -846,11 +978,6 @@ function formatVolume(v) {
   if (v >= 100000000) return (v / 100000000).toFixed(1) + '억'
   if (v >= 10000) return (v / 10000).toFixed(1) + '만'
   return Math.round(v || 0).toLocaleString('ko-KR')
-}
-
-function handleLogout() {
-  sessionStorage.removeItem('user')
-  router.push('/')
 }
 
 function handleResize() {

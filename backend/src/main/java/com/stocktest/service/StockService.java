@@ -104,6 +104,14 @@ public class StockService {
             new StockSearchResult("251270", "넷마블", "KOSDAQ")
     );
 
+    public String getNameByCode(String code) {
+        return STOCK_LIST.stream()
+                .filter(s -> s.getCode().equals(code))
+                .map(StockSearchResult::getName)
+                .findFirst()
+                .orElse(code);
+    }
+
     public List<StockSearchResult> search(String query) {
         String q = query.trim();
         if (q.matches("\\d{6}")) {
@@ -136,7 +144,8 @@ public class StockService {
 
         StockPrice price = new StockPrice();
         price.setCode(code);
-        price.setName((String) output.get("hts_kor_isnm"));
+        String apiName = (String) output.get("hts_kor_isnm");
+        price.setName(apiName != null && !apiName.isBlank() ? apiName : getNameByCode(code));
         price.setCurrentPrice(parseLong(output.get("stck_prpr")));
         price.setChange(parseLong(output.get("prdy_vrss")));
         price.setChangeRate(parseDouble(output.get("prdy_ctrt")));

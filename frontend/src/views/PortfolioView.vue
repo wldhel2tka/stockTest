@@ -1,35 +1,106 @@
 <template>
-  <div class="min-vh-100 bg-light">
-    <!-- 네비게이션 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-      <div class="container-fluid px-4">
-        <span class="navbar-brand fw-bold fs-5">
-          <i class="bi bi-graph-up-arrow me-2"></i>StockTest
-        </span>
-        <div class="d-flex align-items-center gap-3">
-          <router-link to="/home" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-search me-1"></i>주식 검색
-          </router-link>
-          <router-link to="/portfolio" class="btn btn-sm btn-light text-primary fw-semibold">
-            <i class="bi bi-briefcase me-1"></i>포트폴리오
-          </router-link>
-          <router-link to="/youtube" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-youtube me-1"></i>유튜버 분석
-          </router-link>
-          <router-link to="/news" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-newspaper me-1"></i>뉴스 분석
-          </router-link>
-          <span class="text-white small border-start border-light ps-3">
-            <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
+  <div>
+    <div class="container-fluid px-4 mt-4">
+
+      <!-- 자동매매 패널 -->
+      <div class="card border-0 shadow-sm mb-4" :class="autoEnabled ? 'border-success border-2' : ''">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between py-2 px-3">
+          <span class="fw-semibold">
+            <i class="bi bi-robot me-1 text-success"></i>자동매매
+            <span class="badge ms-1" :class="autoEnabled ? 'bg-success' : 'bg-secondary'">
+              {{ autoEnabled ? 'ON' : 'OFF' }}
+            </span>
           </span>
-          <button class="btn btn-outline-light btn-sm" @click="handleLogout">
-            <i class="bi bi-box-arrow-right me-1"></i>로그아웃
-          </button>
+          <div class="d-flex align-items-center gap-2">
+            <span v-if="autoLastRun" class="text-muted" style="font-size:0.75rem">
+              마지막 실행: {{ autoLastRun }}
+            </span>
+            <button class="btn btn-outline-secondary btn-sm" @click="runNow" :disabled="runNowLoading">
+              <span v-if="runNowLoading" class="spinner-border spinner-border-sm"></span>
+              <span v-else><i class="bi bi-play-fill me-1"></i>지금 실행</span>
+            </button>
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" :checked="autoEnabled" @change="toggleAuto" style="width:2.5rem;height:1.25rem;cursor:pointer">
+            </div>
+          </div>
+        </div>
+        <div class="card-body py-3 px-3">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold text-success">익절 기준</label>
+              <div class="input-group input-group-sm">
+                <input type="number" class="form-control" v-model.number="cfg.takeProfitPct" min="1" max="100" step="0.5" />
+                <span class="input-group-text">%</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:0.72rem">매수가 대비 수익 도달 시 전량 매도</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold text-primary">손절 기준</label>
+              <div class="input-group input-group-sm">
+                <input type="number" class="form-control" v-model.number="cfg.stopLossPct" min="1" max="100" step="0.5" />
+                <span class="input-group-text">%</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:0.72rem">매수가 대비 손실 도달 시 전량 매도</div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small fw-semibold">1회 매수금액</label>
+              <div class="input-group input-group-sm">
+                <input type="number" class="form-control" v-model.number="cfg.buyAmount" min="100000" step="100000" />
+                <span class="input-group-text">원</span>
+              </div>
+              <div class="text-muted mt-1" style="font-size:0.72rem">BUY 신호 종목 1건당 매수금액</div>
+            </div>
+            <div class="col-md-3">
+              <button class="btn btn-dark btn-sm w-100" @click="saveConfig" :disabled="configSaving">
+                <span v-if="configSaving" class="spinner-border spinner-border-sm me-1"></span>
+                <i v-else class="bi bi-check-lg me-1"></i>설정 저장
+              </button>
+              <div class="text-muted mt-1" style="font-size:0.72rem">장 시간(09:00~15:30)에만 동작, 1분 간격</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 자동매매 로그 -->
+        <div v-if="autoLogs.length" class="card-footer bg-light p-0">
+          <div class="px-3 py-2 d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold text-muted">자동매매 로그</span>
+            <button class="btn btn-link btn-sm p-0 text-muted" @click="showLogs = !showLogs">
+              {{ showLogs ? '접기' : '펼치기' }}
+            </button>
+          </div>
+          <div v-if="showLogs" class="table-responsive">
+            <table class="table table-sm mb-0" style="font-size:0.78rem">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">시간</th>
+                  <th>구분</th>
+                  <th>종목</th>
+                  <th class="text-end">단가</th>
+                  <th class="text-end">수량</th>
+                  <th class="text-end pe-3">금액</th>
+                  <th>사유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(l, i) in autoLogs" :key="i">
+                  <td class="ps-3 text-muted text-nowrap">{{ formatLogTime(l.time) }}</td>
+                  <td>
+                    <span class="badge"
+                      :class="l.type === 'BUY' ? 'bg-danger' : l.type === 'SELL_PROFIT' ? 'bg-success' : 'bg-primary'">
+                      {{ l.type === 'BUY' ? '자동매수' : l.type === 'SELL_PROFIT' ? '익절' : '손절' }}
+                    </span>
+                  </td>
+                  <td><strong>{{ l.stockName }}</strong> <span class="text-muted">{{ l.stockCode }}</span></td>
+                  <td class="text-end">{{ Number(l.price).toLocaleString() }}원</td>
+                  <td class="text-end">{{ l.quantity }}주</td>
+                  <td class="text-end pe-3">{{ Number(l.amount).toLocaleString() }}원</td>
+                  <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.reason }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </nav>
-
-    <div class="container-fluid px-4 mt-4">
 
       <!-- 로딩 -->
       <div v-if="loading" class="text-center py-5">
@@ -63,7 +134,7 @@
                 <div class="fw-bold fs-5">{{ fmtMoney(portfolio?.totalAssets) }}원</div>
                 <div class="small" :class="pnlClass">
                   {{ portfolio?.totalPnl >= 0 ? '+' : '' }}{{ fmtMoney(portfolio?.totalPnl) }}원
-                  ({{ portfolio?.totalPnlRate >= 0 ? '+' : '' }}{{ portfolio?.totalPnlRate.toFixed(2) }}%)
+                  ({{ portfolio?.totalPnlRate >= 0 ? '+' : '' }}{{ portfolio?.totalPnlRate?.toFixed(2) }}%)
                 </div>
               </div>
             </div>
@@ -115,7 +186,7 @@
                     <td class="text-end">{{ fmtMoney(h.currentValue) }}</td>
                     <td class="text-end pe-3" :class="h.pnl >= 0 ? 'text-danger' : 'text-primary'">
                       <strong>{{ h.pnl >= 0 ? '+' : '' }}{{ fmtMoney(h.pnl) }}원</strong>
-                      <span class="ms-1">({{ h.pnlRate >= 0 ? '+' : '' }}{{ h.pnlRate.toFixed(2) }}%)</span>
+                      <span class="ms-1">({{ h.pnlRate >= 0 ? '+' : '' }}{{ h.pnlRate?.toFixed(2) }}%)</span>
                     </td>
                   </tr>
                 </tbody>
@@ -201,18 +272,32 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { getPortfolio, getTransactions, resetAccount } from '../api/index.js'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  getPortfolio, getTransactions, resetAccount,
+  getAutoTradingStatus, toggleAutoTrading, setAutoTradingConfig,
+  getAutoTradingLogs, runAutoTradingNow
+} from '../api/index.js'
 
-const router = useRouter()
 const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
 
+// 포트폴리오
 const portfolio = ref(null)
 const transactions = ref([])
 const loading = ref(true)
 const showResetConfirm = ref(false)
 const resetLoading = ref(false)
+
+// 자동매매
+const autoEnabled = ref(false)
+const autoLastRun = ref(null)
+const autoLogs = ref([])
+const showLogs = ref(true)
+const configSaving = ref(false)
+const runNowLoading = ref(false)
+const cfg = ref({ takeProfitPct: 10, stopLossPct: 5, buyAmount: 1000000 })
+
+let pollTimer = null
 
 const pnlClass = computed(() => {
   if (!portfolio.value) return ''
@@ -236,9 +321,54 @@ async function loadPortfolio() {
   }
 }
 
-function confirmReset() {
-  showResetConfirm.value = true
+async function loadAutoStatus() {
+  try {
+    const [statusRes, logsRes] = await Promise.all([
+      getAutoTradingStatus(),
+      getAutoTradingLogs()
+    ])
+    const s = statusRes.data
+    autoEnabled.value = s.enabled
+    autoLastRun.value = s.lastRunTime ? s.lastRunTime.replace('T', ' ').substring(0, 16) : null
+    cfg.value.takeProfitPct = s.takeProfitPct
+    cfg.value.stopLossPct   = s.stopLossPct
+    cfg.value.buyAmount     = s.buyAmount
+    autoLogs.value = logsRes.data || []
+  } catch (e) {
+    console.error('자동매매 상태 조회 실패', e)
+  }
 }
+
+async function toggleAuto(e) {
+  const enabled = e.target.checked
+  try {
+    await toggleAutoTrading(enabled)
+    autoEnabled.value = enabled
+  } catch (e) {
+    console.error('자동매매 토글 실패', e)
+  }
+}
+
+async function saveConfig() {
+  configSaving.value = true
+  try {
+    await setAutoTradingConfig(cfg.value)
+  } finally {
+    configSaving.value = false
+  }
+}
+
+async function runNow() {
+  runNowLoading.value = true
+  try {
+    await runAutoTradingNow()
+    await Promise.all([loadPortfolio(), loadAutoStatus()])
+  } finally {
+    runNowLoading.value = false
+  }
+}
+
+function confirmReset() { showResetConfirm.value = true }
 
 async function executeReset() {
   if (!user.value?.id) return
@@ -247,8 +377,6 @@ async function executeReset() {
     await resetAccount(user.value.id)
     showResetConfirm.value = false
     await loadPortfolio()
-  } catch (e) {
-    console.error('초기화 실패', e)
   } finally {
     resetLoading.value = false
   }
@@ -263,10 +391,16 @@ function formatDateTime(dt) {
   return dt.replace('T', ' ').substring(0, 16)
 }
 
-function handleLogout() {
-  sessionStorage.removeItem('user')
-  router.push('/')
+function formatLogTime(t) {
+  if (!t) return ''
+  return String(t).replace('T', ' ').substring(0, 16)
 }
 
-onMounted(loadPortfolio)
+onMounted(async () => {
+  await Promise.all([loadPortfolio(), loadAutoStatus()])
+  // 30초마다 로그·상태 갱신
+  pollTimer = setInterval(loadAutoStatus, 30_000)
+})
+
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 </script>

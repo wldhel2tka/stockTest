@@ -27,6 +27,7 @@ kis:
   app-secret: ryTFkwMMYt8YvYdMJyXOwYktbsN9OL+kc7hCPVPxRrUFvKaMv+ENct+VBuawcMZwqTyZj39ts1zyQINYst/og+JKkGtBdzBopNDoGPKEDZgqyoQZv8b72rxvSrUuYKvoZrwjV2Wb2HZuA99vX7PCuIaeCQeLHcBeZF76ULCqfs2mKYmnNdk=
   base-url: https://openapi.koreainvestment.com:9443
   ws-url: ws://ops.koreainvestment.com:21000
+  account-no: 64120083-01
 
 youtube:
   api-key: AIzaSyBqe9TW5nDWPRSKhz7uCwB6LJw3J1VNqZw

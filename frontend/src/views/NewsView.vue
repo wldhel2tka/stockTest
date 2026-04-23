@@ -1,34 +1,5 @@
 <template>
-  <div class="min-vh-100 bg-light">
-    <!-- 네비게이션 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-      <div class="container-fluid px-4">
-        <span class="navbar-brand fw-bold fs-5">
-          <i class="bi bi-graph-up-arrow me-2"></i>StockTest
-        </span>
-        <div class="d-flex align-items-center gap-3">
-          <router-link to="/home" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-search me-1"></i>주식 검색
-          </router-link>
-          <router-link to="/portfolio" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-briefcase me-1"></i>포트폴리오
-          </router-link>
-          <router-link to="/youtube" class="btn btn-sm btn-outline-light">
-            <i class="bi bi-youtube me-1"></i>유튜버 분석
-          </router-link>
-          <router-link to="/news" class="btn btn-sm btn-light text-primary fw-semibold">
-            <i class="bi bi-newspaper me-1"></i>뉴스 분석
-          </router-link>
-          <span class="text-white small border-start border-light ps-3">
-            <i class="bi bi-person-circle me-1"></i>{{ user?.name }} 님
-          </span>
-          <button class="btn btn-outline-light btn-sm" @click="handleLogout">
-            <i class="bi bi-box-arrow-right me-1"></i>로그아웃
-          </button>
-        </div>
-      </div>
-    </nav>
-
+  <div>
     <div class="container-fluid px-4 mt-4">
       <!-- 헤더 -->
       <div class="d-flex align-items-center justify-content-between mb-3">
@@ -201,11 +172,6 @@ function fmtMoney(v) {
 
 function goToStock(code) {
   router.push({ path: '/home', query: { code } })
-}
-
-function handleLogout() {
-  sessionStorage.removeItem('user')
-  router.push('/')
 }
 
 onMounted(() => load())
