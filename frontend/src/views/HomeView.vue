@@ -238,7 +238,8 @@
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 px-3">
               <span class="fw-semibold text-secondary small">
                 <i class="bi bi-activity me-1"></i>실시간 체결
-                <span class="badge bg-danger ms-1 rounded-pill" style="font-size:0.6rem;animation:blink 1.2s infinite">LIVE</span>
+                <span v-if="isMarketOpen()" class="badge bg-danger ms-1 rounded-pill" style="font-size:0.6rem;animation:blink 1.2s infinite">LIVE</span>
+                <span v-else class="badge bg-secondary ms-1 rounded-pill" style="font-size:0.6rem">장 종료</span>
               </span>
               <span class="text-muted" style="font-size:0.75rem">최근 {{ trades.length }}건 표시</span>
             </div>
@@ -273,7 +274,12 @@
                   </tbody>
                 </table>
                 <div v-if="trades.length === 0" class="text-center py-4 text-muted small">
-                  <span class="spinner-border spinner-border-sm me-2"></span>체결 데이터 수신 대기 중...
+                  <template v-if="isMarketOpen()">
+                    <span class="spinner-border spinner-border-sm me-2"></span>체결 데이터 수신 대기 중...
+                  </template>
+                  <template v-else>
+                    <i class="bi bi-moon-stars me-1"></i>장 운영 시간(09:00~15:30)이 아닙니다.
+                  </template>
                 </div>
               </div>
             </div>
@@ -358,7 +364,7 @@
               </div>
               <ul v-else class="list-group list-group-flush">
                 <li
-                  v-for="s in rankStocks"
+                  v-for="(s, idx) in rankStocks"
                   :key="s.code"
                   class="list-group-item list-group-item-action px-3 py-2"
                   style="cursor:pointer; font-size:0.82rem"
@@ -366,12 +372,15 @@
                 >
                   <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2">
-                      <span class="text-muted" style="width:18px;font-size:0.75rem">{{ s.rank }}</span>
-                      <span class="fw-semibold">{{ s.name }}</span>
+                      <span class="fw-bold text-center" style="width:18px;font-size:0.72rem;color:#aaa">{{ idx + 1 }}</span>
+                      <div>
+                        <div class="fw-semibold">{{ s.name }}</div>
+                        <div class="text-muted" style="font-size:0.72rem">{{ fmtVolume(s.volume) }}</div>
+                      </div>
                     </div>
                     <div class="text-end">
-                      <div class="fw-semibold" :class="s.up ? 'text-danger' : (s.changeRate < 0 ? 'text-primary' : 'text-muted')">
-                        {{ s.changeRate >= 0 ? '+' : '' }}{{ s.changeRate.toFixed(2) }}%
+                      <div class="fw-semibold" :class="s.changeRate > 0 ? 'text-danger' : (s.changeRate < 0 ? 'text-primary' : 'text-muted')">
+                        {{ s.changeRate > 0 ? '+' : '' }}{{ s.changeRate.toFixed(2) }}%
                       </div>
                       <div class="text-muted" style="font-size:0.75rem">{{ fmtMoney(s.currentPrice) }}원</div>
                     </div>
@@ -545,11 +554,11 @@ async function loadSectorStocks(sector) {
       sector.stocks.map((s, idx) =>
         getStockPrice(s.code)
           .then(r => ({
-            rank: idx + 1,
             code: s.code,
             name: r.data.name || s.name,
             currentPrice: r.data.currentPrice,
             changeRate: r.data.changeRate,
+            volume: r.data.volume,
             up: r.data.up,
           }))
           .catch(() => null)
@@ -629,9 +638,19 @@ const tradesContainer = ref(null)
 let eventSource = null
 const realtimeCandle = ref(null) // { time, open, high, low, close, volume }
 
+function isMarketOpen() {
+  const now = new Date()
+  const day = now.getDay() // 0=일, 6=토
+  if (day === 0 || day === 6) return false
+  const h = now.getHours(), m = now.getMinutes()
+  const total = h * 60 + m
+  return total >= 9 * 60 && total < 15 * 60 + 30
+}
+
 function subscribeRealtime(code) {
   if (eventSource) { eventSource.close(); eventSource = null }
   trades.value = []
+  if (!isMarketOpen()) return   // 장 종료 시 구독 안 함
   eventSource = new EventSource(`/api/realtime/stream?code=${code}`)
   eventSource.onmessage = (e) => {
     const trade = JSON.parse(e.data)
@@ -697,11 +716,13 @@ let volumeSeries = null
 
 // 기간 옵션
 const periodOptions = [
-  { key: '1H', label: '1시간', type: 'minute', minuteType: '1H' },
-  { key: '1D', label: '1일',   type: 'minute', minuteType: '1D' },
-  { key: '1W', label: '1주일', type: 'daily',  period: 'D', days: 14 },
+  { key: 'intraday', label: '당일',  type: 'minute', minuteType: '1D' },
+  { key: '1W',       label: '1주',   type: 'daily',  period: 'D', days: 7 },
+  { key: '1M',       label: '1달',   type: 'daily',  period: 'D', days: 30 },
+  { key: '3M',       label: '3달',   type: 'daily',  period: 'D', days: 90 },
+  { key: '1Y',       label: '1년',   type: 'daily',  period: 'D', days: 365 },
 ]
-const selectedPeriod = ref(periodOptions[1]) // 기본 1일
+const selectedPeriod = ref(periodOptions[2]) // 기본 1달
 
 // Computed
 const changeZero = computed(() => stockPrice.value && stockPrice.value.change === 0)
@@ -978,6 +999,15 @@ function formatVolume(v) {
   if (v >= 100000000) return (v / 100000000).toFixed(1) + '억'
   if (v >= 10000) return (v / 10000).toFixed(1) + '만'
   return Math.round(v || 0).toLocaleString('ko-KR')
+}
+
+// 추천 종목 거래량 표시 (단위 포함)
+function fmtVolume(v) {
+  if (!v) return '-'
+  if (v >= 100000000) return (v / 100000000).toFixed(1) + '억주'
+  if (v >= 10000) return Math.round(v / 10000) + '만주'
+  if (v >= 1000) return (v / 1000).toFixed(1) + '천주'
+  return v.toLocaleString() + '주'
 }
 
 function handleResize() {
